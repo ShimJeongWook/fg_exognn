@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 from src.utils.metrics import masked_mape
 from src.utils.metrics import masked_rmse
-from src.utils.metrics import compute_all_metrics, masked_f1_score
+from src.utils.metrics import compute_all_metrics
 import sys
 from src.utils.project import normalize_run_dir
 
@@ -218,18 +218,18 @@ class BaseEngine():
             test_mae = []
             test_mape = []
             test_rmse = []
+            test_r2 = []
+            test_ioa = []
             print('Check mask value', mask_value)
             for i in range(self.model.horizon):
                 res = compute_all_metrics(preds[:,i,:], labels[:,i,:], mask_value)
-                log = 'Horizon {:d}, Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}'
-                self._logger.info(log.format(i + 1, res[0], res[2], res[1]))
+                log = 'Horizon {:d}, Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}, Test R2: {:.4f}, Test IOA: {:.4f}'
+                self._logger.info(log.format(i + 1, res[0], res[2], res[1], res[3], res[4]))
                 test_mae.append(res[0])
                 test_mape.append(res[1])
                 test_rmse.append(res[2])
+                test_r2.append(res[3])
+                test_ioa.append(res[4])
 
-            log = 'Average Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}'
-            self._logger.info(log.format(np.mean(test_mae), np.mean(test_rmse), np.mean(test_mape)))
-
-            f1_score = masked_f1_score(preds, labels)
-            log = 'F1 Score for level 0: {:.4f}, 1: {:.4f}, 2: {:.4f}'
-            self._logger.info(log.format(f1_score[0], f1_score[1], f1_score[2]))
+            log = 'Average Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}, Test R2: {:.4f}, Test IOA: {:.4f}'
+            self._logger.info(log.format(np.mean(test_mae), np.mean(test_rmse), np.mean(test_mape), np.mean(test_r2), np.mean(test_ioa)))

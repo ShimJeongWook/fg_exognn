@@ -62,10 +62,9 @@ FG_ExoGNN 실행에 **실제로 필요한 최소 패키지**는 다음과 같습
 - `torch`
 - `numpy`
 - `tqdm`
-- `torcheval`   ← `src/utils/metrics.py`에서 사용
 
 ```bash
-pip install torch numpy tqdm torcheval
+pip install torch numpy tqdm
 ```
 
 ---
@@ -178,7 +177,16 @@ python experiments/fg_exognn/main.py \
 
 ## 6. 평가 지표
 
-`src/utils/metrics.py` — masked MAE / RMSE / MAPE를 horizon별로 출력합니다.
+`src/utils/metrics.py` — masked **MAE / RMSE / MAPE / R2 / IOA** 5개 지표를 horizon별 + 평균으로 출력합니다.
+(R2 = 결정계수, IOA = Willmott index of agreement. 모두 다른 지표와 동일한 마스킹 규칙 적용.)
+학습이 끝나면 test 평가에서 다음 형식으로 로그가 남습니다.
+
+```
+Horizon 1, Test MAE: ..., Test RMSE: ..., Test MAPE: ..., Test R2: ..., Test IOA: ...
+...
+Average Test MAE: ..., Test RMSE: ..., Test MAPE: ..., Test R2: ..., Test IOA: ...
+```
+
 학습/검증 로그와 horizon별 테스트 결과가 `outputs/experiments/fg_exognn/<dataset>/record_s<seed>.log`에 기록됩니다.
 
 ---
@@ -190,5 +198,5 @@ python experiments/fg_exognn/main.py \
 - `src/utils/project.py` : `AIRKOREA_ROOT = PROJECT_ROOT / "data_airkorea"` 추가.
 - `src/utils/dataloader_deepair.py` : `get_dataset_info()`에 AirKorea용 `24_24_AK`(306노드) 키 추가, 외부 절대경로를 참조하던 `KA_sub1/2/3` 키 제거.
   - (원본에서는 AirKorea 데이터가 `get_dataset_info`에 등록돼 있지 않았습니다.)
-
-> 검증: `24_24_AK`(AirKorea)와 `24_24_KA`(KnowAir) 데이터셋에 대해 1-epoch 학습 + 평가가 정상 동작함을 확인했습니다.
+- `src/utils/metrics.py` : `masked_r2`, `masked_ioa` 추가, `compute_all_metrics`가 `(MAE, MAPE, RMSE, R2, IOA)` 5개를 반환하도록 변경. F1-score 관련 코드(`masked_f1_score`)와 `torcheval` 의존성 제거.
+- `src/engines/deepair_engine.py`, `src/base/engine.py` : test 평가 출력에 R2/IOA 추가, F1-score 출력 제거. deepair_engine에 인라인으로 박혀 있던 기존 R2/IOA·PM2.5-GNN-style(CSI/POD/FAR) 블록 제거.

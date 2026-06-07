@@ -3,7 +3,7 @@ import time
 import torch
 import numpy as np
 from tqdm import tqdm
-from src.utils.metrics import masked_mape, masked_f1_score
+from src.utils.metrics import masked_mape
 from src.utils.metrics import masked_rmse
 from src.utils.metrics import compute_all_metrics
 import sys
@@ -94,50 +94,21 @@ class DeepAirEngine(BaseEngine):
             test_mae = []
             test_mape = []
             test_rmse = []
+            test_r2 = []
+            test_ioa = []
             print('Check mask value', mask_value)
             for i in range(self.model.horizon):
                 res = compute_all_metrics(preds[:,i,:], labels[:,i,:], mask_value)
-                log = 'Horizon {:d}, Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}'
-                self._logger.info(log.format(i + 1, res[0], res[2], res[1]))
+                log = 'Horizon {:d}, Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}, Test R2: {:.4f}, Test IOA: {:.4f}'
+                self._logger.info(log.format(i + 1, res[0], res[2], res[1], res[3], res[4]))
                 test_mae.append(res[0])
                 test_mape.append(res[1])
                 test_rmse.append(res[2])
+                test_r2.append(res[3])
+                test_ioa.append(res[4])
 
-            log = 'Average Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}'
-            self._logger.info(log.format(np.mean(test_mae), np.mean(test_rmse), np.mean(test_mape)))
-
-            f1_score = masked_f1_score(preds, labels)
-            log = 'F1 Score for level 0: {:.4f}, 1: {:.4f}, 2: {:.4f}'
-            self._logger.info(log.format(f1_score[0], f1_score[1], f1_score[2]))
-
-            # ---- ALSO compute metrics with the ORIGINAL PM2.5-GNN get_metric formula ----
-            try:
-                p = preds.numpy(); l = labels.numpy()
-                hz = 75
-                hit = np.sum((p>=hz)&(l>=hz)); miss = np.sum((l>=hz)&(p<hz)); fa = np.sum((p>=hz)&(l<hz))
-                csi = hit/(hit+fa+miss+1e-12); pod = hit/(hit+miss+1e-12); far = fa/(hit+fa+1e-12)
-                pp = np.transpose(p,(0,2,1)).reshape((-1,p.shape[1]))
-                ll = np.transpose(l,(0,2,1)).reshape((-1,l.shape[1]))
-                rmse_o = np.mean(np.sqrt(np.mean(np.square(pp-ll),axis=1)))
-                mae_o = np.mean(np.mean(np.abs(pp-ll),axis=1))
-                self._logger.info('[PM2.5-GNN-style] RMSE: {:.4f}, MAE: {:.4f}, CSI: {:.4f}, POD: {:.4f}, FAR: {:.4f}'.format(
-                    rmse_o, mae_o, csi, pod, far))
-                # ---- R2 and IOA (Willmott index of agreement), overall + per-horizon ----
-                def _r2_ioa(pr, ob):
-                    pr = pr.ravel().astype('float64'); ob = ob.ravel().astype('float64')
-                    obar = ob.mean()
-                    ss_res = np.sum((ob-pr)**2); ss_tot = np.sum((ob-obar)**2)
-                    r2 = 1.0 - ss_res/ss_tot if ss_tot > 1e-12 else float('nan')
-                    den = np.sum((np.abs(pr-obar)+np.abs(ob-obar))**2)
-                    ioa = 1.0 - ss_res/den if den > 1e-12 else float('nan')
-                    return r2, ioa
-                r2_all, ioa_all = _r2_ioa(p, l)
-                self._logger.info('[R2-IOA] R2: {:.4f}, IOA: {:.4f}'.format(r2_all, ioa_all))
-                for i in range(p.shape[1]):
-                    r2h, ioah = _r2_ioa(p[:, i, :], l[:, i, :])
-                    self._logger.info('[R2-IOA] Horizon {:d}, R2: {:.4f}, IOA: {:.4f}'.format(i+1, r2h, ioah))
-            except Exception as e:
-                self._logger.info('PM2.5-GNN-style metric skipped: {}'.format(e))
+            log = 'Average Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}, Test R2: {:.4f}, Test IOA: {:.4f}'
+            self._logger.info(log.format(np.mean(test_mae), np.mean(test_rmse), np.mean(test_mape), np.mean(test_r2), np.mean(test_ioa)))
 
     # def corr(self, mode):
     #     # self.model.eval()
